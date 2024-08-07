@@ -7,8 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 # Find OpenTelemetry
 find_package(opentelemetry-cpp CONFIG REQUIRED)
 
-# Find Google Benchmark
-find_package(benchmark CONFIG REQUIRED)
+## Find Google Benchmark
+#find_package(benchmark CONFIG REQUIRED)
 
 # Find Protobuf
 find_package(Protobuf REQUIRED)
@@ -24,6 +24,7 @@ target_link_libraries(otel_performance PRIVATE
         opentelemetry_trace
         opentelemetry_exporter_otlp_http
         opentelemetry_otlp_recordable
+        opentelemetry_exporter_otlp_file
         opentelemetry_proto
         benchmark
         ${Protobuf_LIBRARIES}

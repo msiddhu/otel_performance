@@ -10,18 +10,18 @@
 
 #pragma once
 
-#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
+#include "opentelemetry/sdk/trace/batch_span_processor_factory.h"
 #include "opentelemetry/sdk/trace/exporter.h"
 #include "opentelemetry/sdk/trace/processor.h"
-#include "opentelemetry/sdk/trace/simple_processor_factory.h"
 #include "opentelemetry/sdk/trace/tracer_context.h"
 #include "opentelemetry/sdk/trace/tracer_context_factory.h"
 #include "opentelemetry/sdk/trace/tracer_provider_factory.h"
 #include "opentelemetry/trace/provider.h"
 
-#include "opentelemetry/context/propagation/global_propagator.h"
-#include "opentelemetry/context/propagation/text_map_propagator.h"
-#include "opentelemetry/trace/propagation/http_trace_context.h"
+#include "opentelemetry/exporters/otlp/otlp_file_exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_http_exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_http_exporter_options.h"
+
 
 #include <cstring>
 #include <iostream>
@@ -29,8 +29,11 @@
 #include <opentelemetry/sdk/trace/exporter.h>
 #include "opentelemetry/ext/http/client/http_client.h"
 #include "opentelemetry/nostd/shared_ptr.h"
+#include <opentelemetry/exporters/otlp/otlp_http_exporter.h>
+#include "opentelemetry/exporters/otlp/otlp_http_exporter_options.h"
 
 namespace sdktrace = opentelemetry::sdk::trace;
+namespace otlp = opentelemetry::exporter::otlp;
 
 namespace
 {
@@ -38,10 +41,20 @@ namespace
 
     void InitTracer()
     {
-        auto exporter = std::unique_ptr<sdktrace::SpanExporter>(
-                                               new opentelemetry::exporter::otlp::OtlpHttpExporter());
+
+        opentelemetry::exporter::otlp::OtlpHttpExporterOptions http_exporter_options;
+        http_exporter_options.url="http://localhost:4318/v1/traces";
+
+        auto http_exporter = std::unique_ptr<sdktrace::SpanExporter>(
+                new opentelemetry::exporter::otlp::OtlpHttpExporter(http_exporter_options));
+
+
+
+        opentelemetry::sdk::trace::BatchSpanProcessorOptions batchSpanProcessorOptions;
+        batchSpanProcessorOptions.max_queue_size=10000;
+
         auto processor =
-                opentelemetry::sdk::trace::SimpleSpanProcessorFactory::Create(std::move(exporter));
+                opentelemetry::sdk::trace::BatchSpanProcessorFactory::Create(std::move(http_exporter),batchSpanProcessorOptions);
         std::vector<std::unique_ptr<opentelemetry::sdk::trace::SpanProcessor>> processors;
         processors.push_back(std::move(processor));
         // Default is an always-on sampler.
@@ -51,11 +64,6 @@ namespace
                 opentelemetry::sdk::trace::TracerProviderFactory::Create(std::move(context));
         // Set the global trace provider
         opentelemetry::trace::Provider::SetTracerProvider(provider);
-
-        // set global propagator
-        opentelemetry::context::propagation::GlobalTextMapPropagator::SetGlobalPropagator(
-                opentelemetry::nostd::shared_ptr<opentelemetry::context::propagation::TextMapPropagator>(
-                        new opentelemetry::trace::propagation::HttpTraceContext()));
     }
 
     void CleanupTracer()
